@@ -1,0 +1,225 @@
+
+class Vector {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+  }
+  set(x, y) {
+    this.x = x;
+    this.y = y;
+  }
+  add(v) {
+    return new Vector(this.x + v.x, this.y + v.y);
+  }
+  sub(v) {
+    return new Vector(this.x - v.x, this.y - v.y);
+  }
+  mul(s) {
+    return new Vector(this.x * s, this.y * s);
+  }
+  clone() {
+    return new Vector(this.x, this.y);
+  }
+  toString(){
+    return "("+this.x+","+this.y+")"
+  }
+  move(x,y){
+    this.x += x
+    this.y += y
+    return this
+  }
+  set(x,y){
+    this.x = x
+    this.y = y
+    return this
+  }
+  equal(v){
+    return (this.x==v.x) && (this.y==v.y)
+  }
+  set length(nv){
+    let temp = this.unit.mul(nv)
+    this.set(temp.x,temp.y)
+  }
+  get length(){ //if use get,take it as variable( use length instead of length())
+    return Math.sqrt( this.x*this.x +     this.y*this.y )
+  }
+  get angle() {
+    return Math.atan2(this.y, this.x);
+  }
+  get unit(){
+    return this.mul(1/this.length)
+  }
+}
+
+var canvas = document.getElementById("mycanvas")
+var ctx = canvas.getContext("2d")
+
+ww = canvas.width = window.innerWidth
+wh = canvas.height = window.innerHeight
+
+window.addEventListener("resize",function(){
+  ww = canvas.width = window.innerWidth
+  wh = canvas.height = window.innerHeight
+})
+
+class Ball{
+  constructor() {
+    this.p = new Vector(ww/2,wh/2)
+    this.v = new Vector(-10,3)
+    this.a = new Vector(0,1)
+    this.r = 50
+    this.dragging = false
+  }
+  draw(){
+    ctx.beginPath()
+    ctx.save()
+      ctx.translate(this.p.x,this.p.y)
+      ctx.arc(0,0,this.r,0,Math.PI*2)
+      ctx.fillStyle=controls.color
+      ctx.fill()
+    ctx.restore()
+
+    this.drawV()
+  }
+  drawV(){
+    ctx.beginPath()
+    ctx.save()
+    ctx.translate(this.p.x,this.p.y)
+      ctx.scale(3,3)
+      ctx.moveTo(0,0)
+      ctx.lineTo(this.v.x,this.v.y)
+      ctx.strokeStyle="blue"
+      ctx.stroke()
+
+      ctx.beginPath()
+      ctx.moveTo(0,0)
+      ctx.lineTo(this.v.x,0)
+      ctx.strokeStyle="red"
+      ctx.stroke()
+
+      ctx.beginPath()
+      ctx.moveTo(0,0)
+      ctx.lineTo(0,this.v.y)
+      ctx.strokeStyle="green"
+      ctx.stroke()
+    ctx.restore()
+  }
+  update(){
+    if (this.dragging ==false){
+      this.p = this.p.add(this.v)
+      this.v = this.v.add(this.a)
+      this.v = this.v.mul(controls.fade)
+      //new dat
+      controls.vx = this.v.x
+      controls.vy = this.v.y
+      controls.ay = this.a.y
+
+      this.checkBoundary()
+    }
+  } 
+  checkBoundary(){
+    if (this.p.x+this.r>ww){
+      this.v.x = -Math.abs(this.v.x)
+    }
+    if (this.p.x-this.r<0){
+      this.v.x = Math.abs(this.v.x)
+    }
+    if (this.p.y+this.r>wh){
+      this.v.y = -Math.abs(this.v.y)
+    }
+    if (this.p.y-this.r<0){
+      this.v.y = Math.abs(this.v.y)
+    }
+  }
+}
+
+var controls = {
+  vx: 0,
+  vy: 0,
+  ay: 0.6,
+  fade: 0.99,
+  update: true,
+  color: "#fff",
+  step: function(){
+    ball.update()
+  },
+  FPS: 30
+}
+var gui = new dat.GUI()
+gui.add(controls,"vx",-50,50).listen().onChange(function(value){
+  ball.v.x =value
+})
+gui.add(controls,"vy",-50,50).listen().onChange(function(value){
+  ball.v.y =value
+})
+gui.add(controls,"ay",-1,1).step(0.001).listen().onChange(function(value){
+  ball.a.y =value
+})
+gui.add(controls,"fade",0,1).step(0.01).listen()
+gui.add(controls,"update")
+gui.addColor(controls,"color")
+gui.add(controls,"step")
+gui.add(controls,"FPS",1,120)
+
+var ball;
+function init(){
+  ball = new Ball()
+}
+init()
+
+function update(){
+  if (controls.update){
+    ball.update()   
+  }
+}
+setInterval(update,1000/30)
+
+function draw(){
+  ctx.fillStyle="rgba(0,0,0,0.5)"
+  ctx.fillRect(0,0,ww,wh)
+  
+  ball.draw()
+  
+  setTimeout(draw,1000/controls.FPS)
+}
+draw()//draw background & clear last draw
+
+
+var mousePos = {x: 0 ,y: 0}
+
+function getDistance(p1,p2){
+  let temp1 = p1.x - p2.x
+  let temp2 = p1.y - p2.y
+  let dist = Math.pow(temp1,2) +  Math.pow(temp2,2)
+  return Math.sqrt(dist)
+}
+
+canvas.addEventListener("mousedown",function(evt){
+  mousePos = new Vector(evt.x, evt.y)
+  // console.log(mousePos)
+  let dist = mousePos.sub(ball.p).length
+  //console.log(dist)
+  if (dist<ball.r){
+    console.log("ball clicked")
+    ball.dragging =true
+  }
+})
+
+canvas.addEventListener("mousemove",function(evt){
+  let nowPos = new Vector(evt.x, evt.y)
+  if (ball.dragging){
+    let delta = nowPos.sub(mousePos)
+    ball.p = ball.p.add(delta)
+    ball.v = delta.clone()
+  }
+  let dist = getDistance(nowPos,ball.p)
+  if (dist<ball.r){
+    canvas.style.cursor = "move"
+  }else{
+    canvas.style.cursor = "initial"   
+  } 
+  mousePos = nowPos
+})
+canvas.addEventListener("mouseup",function(evt){
+  ball.dragging = false
+})
